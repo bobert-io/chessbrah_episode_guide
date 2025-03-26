@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Game</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background-color: #f5f5f5;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      display: flex;
+      gap: 20px;
+      max-width: 1400px;
+      width: 100%;
+      position: relative;
+    }
+
+    .content-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .board-container {
+      width: 500px;
+      max-width: 100%;
+      position: relative;
+    }
+
+    .game-info {
+      width: 300px;
+      max-width: 100%;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+      width: 300px;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+      align-self: flex-start;
+    }
+
+    .filter-section {
+      margin-bottom: 20px;
+    }
+
+    .filter-section h3 {
+      margin: 10px 0;
+      color: #2c3e50;
+    }
+
+    .filter-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .filter-options label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .filter-section select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+
+    .sort-options select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+
+    #video-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .video-item {
+      display: flex;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      padding: 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    .video-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .video-item img {
+      width: 120px;
+      height: 68px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+
+    .video-text {
+      flex: 1;
+    }
+
+    .video-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #2c3e50;
+    }
+
+    .video-description {
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    @media (max-width: 1200px) {
+      .main-content {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-width: 1000px;
+        margin-top: 20px;
+        position: static;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .board-container {
+        width: 100%;
+      }
+    }
+
+    #board {
+      width: 100%;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .move-arrow {
+      position: absolute;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .moves-container {
+      padding: 15px;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #moves {
+      height: 350px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+
+    .move-row {
+      display: flex;
+      margin-bottom: 8px;
+    }
+
+    .move-number {
+      width: 30px;
+      font-weight: bold;
+      color: #666;
+    }
+
+    .move {
+      flex-grow: 1;
+      padding: 3px 8px;
+      margin: 0 3px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .move:hover {
+      background-color: #f0f0f0;
+    }
+
+    .move.active {
+      background-color: #e0e0e0;
+      font-weight: bold;
+    }
+
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    button {
+      padding: 8px 12px;
+      background-color: #4a75a2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background-color: #395d82;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    /* Promotion modal */
+    .promotion-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .promotion-options {
+      display: flex;
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .promotion-piece {
+      width: 60px;
+      height: 60px;
+      margin: 5px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 4px;
+    }
+
+    .promotion-piece:hover {
+      border-color: #4a75a2;
+    }
+
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    .action-buttons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Highlighted squares */
+    .highlight-square {
+      box-shadow: inset 0 0 3px 3px yellow;
+    }
+
+    /* SVG arrow container */
+    #arrow-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .pgn-container {
+      margin-top: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .pgn-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .color-select {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #pgn-input {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: monospace;
+      resize: vertical;
+    }
+
+    #load-pgn-btn {
+      align-self: flex-end;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="main-content">
+    <div class="content-wrapper">
+  <div class="container">
+    <div class="board-container">
+      <div id="board"></div>
+      <div id="arrow-layer"></div>
+      <div class="status" id="status">White to move</div>
+      <div class="action-buttons">
+        <button id="new-game-btn">New Game</button>
+        <button id="lichess-analysis-btn">Open Analysis Board</button>
+      </div>
+    </div>
+
+    <div class="game-info">
+      <div class="moves-container">
+        <h3>Move History</h3>
+        <div id="moves"></div>
+        <div class="nav-buttons">
+          <button id="start-btn">« Start</button>
+          <button id="prev-btn">‹ Prev</button>
+          <button id="next-btn">Next ›</button>
+          <button id="end-btn">End »</button>
+        </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pgn-container">
+        <h3>Load PGN</h3>
+        <div class="pgn-controls">
+          <div class="color-select">
+            <label>Playing as:</label>
+            <select id="player-color">
+              <option value="w">White</option>
+              <option value="b">Black</option>
+            </select>
+          </div>
+          <textarea id="pgn-input" placeholder="Paste PGN here..."></textarea>
+          <button id="load-pgn-btn">Load PGN</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <!-- Filter and Sort Section -->
+      <div class="filter-section">
+        <div class="series-selection-div">
+          <h3>Series Selection</h3>
+          <select id="series-select">
+            <!-- Options will be populated dynamically -->
+          </select>
+        </div>
+
+        <h3>Sort By</h3>
+        <div class="sort-options">
+          <select id="sort-select">
+            <option value="elo-high-low">Elo (high to low)</option>
+            <option value="elo-low-high">Elo (low to high)</option>
+            <!-- <option value="elo-closest">Elo (closest)</option> -->
+          </select>
+        </div>
+      </div>
+      <div id="video-list-container">
+        <!-- Example video items -->
+        <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" class="video-item" target="_blank">
+          <img src="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg" alt="Video thumbnail">
+          <div class="video-text">
+            <div class="video-title">Title of the YouTube Video</div>
+            <!-- <div class="video-description">Brief description of the video content</div> -->
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="promotion-modal" id="promotion-modal">
+    <div class="promotion-options" id="promotion-options"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
