@@ -53,6 +53,14 @@ const bookLoadedPromise = new Promise((resolve) => {
             Object.keys(openingBook.series).forEach(key => {
                 openingBook.series[key] = new Set(openingBook.series[key]);
             });
+
+            // Add "All" series containing all game IDs
+            const allGameIds = new Set();
+            Object.keys(openingBook.games).forEach(gameId => {
+                allGameIds.add(parseInt(gameId));
+            });
+            openingBook.series["Any Series"] = allGameIds;
+
             // Convert game_ids lists to Sets for both White and Black trees
             function convertGameIdsToSets(node) {
                 if (node.game_ids) {
@@ -86,11 +94,20 @@ function populateSeriesSelection() {
     seriesSelect.innerHTML = ''; // Clear existing options
 
     if (openingBook && openingBook.series) {
+        // First add "Any Series" option
+        const anySeriesOption = document.createElement('option');
+        anySeriesOption.value = "Any Series";
+        anySeriesOption.textContent = "Any Series";
+        seriesSelect.appendChild(anySeriesOption);
+
+        // Then add all other series
         Object.keys(openingBook.series).forEach(seriesName => {
-            const option = document.createElement('option');
-            option.value = seriesName;
-            option.textContent = seriesName;
-            seriesSelect.appendChild(option);
+            if (seriesName !== "Any Series") {
+                const option = document.createElement('option');
+                option.value = seriesName;
+                option.textContent = seriesName;
+                seriesSelect.appendChild(option);
+            }
         });
 
         // Restore saved selection
@@ -125,9 +142,19 @@ document.getElementById('sort-select').addEventListener('change', () => {
 });
 
 // Add event listener for player color changes
-document.getElementById('player-color').addEventListener('change', (e) => {
+document.getElementById('player-color').addEventListener('click', (e) => {
+    const button = e.target;
+    const currentColor = button.textContent.includes('White') ? 'w' : 'b';
+    const newColor = currentColor === 'w' ? 'b' : 'w';
+    
+    // Update button text
+    button.textContent = `Playing as ${newColor === 'w' ? 'White' : 'Black'}`;
+    
+    // Update board orientation
     updateBoardOrientation();
-    onPositionChange(); // Trigger position change when player color changes
+    
+    // Trigger position change
+    onPositionChange();
 });
 
 // Trigger initial position change
@@ -220,7 +247,7 @@ function onSnapEnd() {
 
 function getNodeAtCurrentPosition() {
     let uci_Moves = getUciMoves();
-    let node = openingBook[document.getElementById('player-color').value === 'w' ? "White" : "Black"];
+    let node = openingBook[document.getElementById('player-color').textContent.includes('White') ? "White" : "Black"];
     for (let i = 0; i < uci_Moves.length; i++) {
         let uci_move = uci_Moves[i];
         if (!(uci_move in node)) {
@@ -456,7 +483,7 @@ function redrawArrows() {
     svg.appendChild(defs);
 
     // Check if playing as Black
-    const isBlack = document.getElementById('player-color').value === 'b';
+    const isBlack = document.getElementById('player-color').textContent.includes('Black');
 
     // Draw all arrows
     arrows.forEach((arrow, index) => {
@@ -728,7 +755,8 @@ updateStatus();
 
 // Function to update board orientation based on player color
 function updateBoardOrientation() {
-    const color = document.getElementById('player-color').value;
+    const button = document.getElementById('player-color');
+    const color = button.textContent.includes('White') ? 'w' : 'b';
     board.orientation(color === 'w' ? 'white' : 'black');
 }
 
@@ -762,15 +790,22 @@ function loadPGN() {
     updateStatus();
     onPositionChange();
 
-    // Go to the end of the game
-    goToEnd();
+    // Find the divergence point and navigate to it
+    const divergencePoint = findDivergencePoint();
+    if (divergencePoint !== -1) {
+        goToMove(divergencePoint);
+    } else {
+        // If no divergence point found, go to the end
+        goToEnd();
+    }
 }
 
 // Function to find the point of divergence from the opening book
 function findDivergencePoint() {
     let uciMoves = getUciMoves();
-    let node = openingBook[document.getElementById('player-color').value === 'w' ? "White" : "Black"];
+    let node = openingBook[document.getElementById('player-color').textContent.includes('White') ? "White" : "Black"];
     let divergencePoint = -1;
+    let series_game_ids = getCurrentSeriesGameIds();
 
     // If we're at the start position, no divergence
     if (uciMoves.length === 0) {
@@ -783,9 +818,19 @@ function findDivergencePoint() {
         
         // If this move exists in the current node
         if (uciMove in node) {
-            node = node[uciMove];
+            // Check if this move has any games in the current series
+            let game_ids_at_move = node[uciMove]["game_ids"];
+            game_ids_at_move = game_ids_at_move.intersection(series_game_ids);
+            
+            if (game_ids_at_move.size > 0) {
+                node = node[uciMove];
+            } else {
+                // Move exists but not in current series
+                divergencePoint = i;
+                break;
+            }
         } else {
-            // We found the divergence point
+            // Move doesn't exist at all
             divergencePoint = i;
             break;
         }
@@ -796,7 +841,7 @@ function findDivergencePoint() {
         return -1;
     }
 
-    return divergencePoint;
+    return divergencePoint - 1; 
 }
 
 // Function to open current position in Lichess analysis
