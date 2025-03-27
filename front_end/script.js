@@ -54,7 +54,7 @@ const bookLoadedPromise = new Promise((resolve) => {
                 openingBook.series[key] = new Set(openingBook.series[key]);
             });
 
-            // Add "All" series containing all game IDs
+            // Add "Any Series" containing all game IDs
             const allGameIds = new Set();
             Object.keys(openingBook.games).forEach(gameId => {
                 allGameIds.add(parseInt(gameId));
@@ -114,6 +114,9 @@ function populateSeriesSelection() {
         const savedSeries = localStorage.getItem('selectedSeries');
         if (savedSeries && openingBook.series[savedSeries]) {
             seriesSelect.value = savedSeries;
+        } else {
+            // Default to "Any Series" if no saved selection
+            seriesSelect.value = "Any Series";
         }
     }
 }
@@ -271,6 +274,8 @@ function onPositionChange() {
         let node = getNodeAtCurrentPosition();
         series_game_ids = getCurrentSeriesGameIds();
         arrows = [];
+        const videoListContainer = document.getElementById('video-list-container');
+        videoListContainer.innerHTML = ''; // Clear existing videos
         if (node) {
             // Part 1: draw the arrows
             console.log(node);
@@ -303,7 +308,6 @@ function onPositionChange() {
             }
             // Part 2: insert the youtube links
             console.log("Starting part 2");
-            const videoListContainer = document.getElementById('video-list-container');
             videoListContainer.innerHTML = ''; // Clear existing videos
             
             // Create array of video data for sorting
@@ -382,7 +386,7 @@ function onPositionChange() {
                 
                 console.log(video.vs_str, video.yt_link);
             }
-        }
+        } 
         redrawArrows();
     });
 }
@@ -606,14 +610,6 @@ function updateMoveList() {
 
         moveRow.appendChild(moveElem);
     });
-
-    // Scroll to the current move
-    if (currentPosition >= 0) {
-        const activeMove = movesDiv.querySelector('.move.active');
-        if (activeMove) {
-            activeMove.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
 
     updateNavigationButtons();
 }
