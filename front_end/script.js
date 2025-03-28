@@ -180,6 +180,20 @@ document.addEventListener('keydown', (e) => {
         goToPreviousMove();
     } else if (e.key === 'ArrowRight') {
         goToNextMove();
+    } else if (e.key === 'x') {
+        // Toggle player color
+        const button = document.getElementById('player-color');
+        const currentColor = button.textContent.includes('White') ? 'w' : 'b';
+        const newColor = currentColor === 'w' ? 'b' : 'w';
+
+        // Update button text
+        button.textContent = `Playing as ${newColor === 'w' ? 'White' : 'Black'}`;
+
+        // Update board orientation
+        updateBoardOrientation();
+
+        // Trigger position change
+        onPositionChange();
     }
 });
 
