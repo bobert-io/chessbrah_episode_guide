@@ -80,6 +80,14 @@ const bookLoadedPromise = new Promise((resolve) => {
 
             // Populate series selection
             populateSeriesSelection();
+
+            // Restore saved sort option
+            const sortSelect = document.getElementById('sort-select');
+            const savedSort = localStorage.getItem('selectedSort');
+            if (savedSort && sortSelect.querySelector(`option[value="${savedSort}"]`)) {
+                sortSelect.value = savedSort;
+            }
+
             resolve(data);
         })
         .catch(error => {
@@ -140,7 +148,8 @@ document.getElementById('series-select').addEventListener('change', (e) => {
 });
 
 // Add event listener for sort selection changes
-document.getElementById('sort-select').addEventListener('change', () => {
+document.getElementById('sort-select').addEventListener('change', (e) => {
+    localStorage.setItem('selectedSort', e.target.value);
     onPositionChange(); // Trigger position change when sort option changes
 });
 
