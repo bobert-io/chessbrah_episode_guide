@@ -47,7 +47,7 @@ const bookLoadedPromise = new Promise((resolve) => {
         .then(response => response.json())
         .then(data => {
             openingBook = data;
-            console.log('Opening book loaded successfully');
+            // console.log('Opening book loaded successfully');
 
             // Convert lists to sets
             Object.keys(openingBook.series).forEach(key => {
@@ -149,6 +149,7 @@ document.getElementById('series-select').addEventListener('change', (e) => {
 
 // Add event listener for sort selection changes
 document.getElementById('sort-select').addEventListener('change', (e) => {
+    console.log("Attempting to set sort option to", e.target.value);
     localStorage.setItem('selectedSort', e.target.value);
     onPositionChange(); // Trigger position change when sort option changes
 });
@@ -272,7 +273,7 @@ function getNodeAtCurrentPosition() {
 
 function getCurrentSeriesGameIds(){
     let seriesName = document.getElementById("series-select").value;
-    console.log(seriesName);
+    // console.log(seriesName);
     return openingBook.series[seriesName];
 }
 
@@ -287,7 +288,7 @@ function onPositionChange() {
         videoListContainer.innerHTML = ''; // Clear existing videos
         if (node) {
             // Part 1: draw the arrows
-            console.log(node);
+            // console.log(node);
             // Find the maximum number of games for any move to calculate alpha values
             let maxGames = 0;
             for (move in node) {
@@ -316,7 +317,7 @@ function onPositionChange() {
                 }
             }
             // Part 2: insert the youtube links
-            console.log("Starting part 2");
+            // console.log("Starting part 2");
             videoListContainer.innerHTML = ''; // Clear existing videos
             
             // Create array of video data for sorting
@@ -329,7 +330,7 @@ function onPositionChange() {
                 let vs_str = game_data[0];
                 let yt_link = game_data[1];
                 let elo = game_data[2];
-                console.log(elo);
+                // console.log(elo);
                 videoData.push({ game_id, vs_str, yt_link, elo });
             }
 
@@ -393,7 +394,7 @@ function onPositionChange() {
                 // Add to container
                 videoListContainer.appendChild(videoItem);
                 
-                console.log(video.vs_str, video.yt_link);
+                // console.log(video.vs_str, video.yt_link);
             }
         } 
         redrawArrows();
