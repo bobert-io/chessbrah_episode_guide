@@ -388,8 +388,22 @@ function onPositionChange() {
                 title.className = 'video-title';
                 title.textContent = `${video.vs_str} (${video.elo})`;
 
+                // Create description
+                const description = document.createElement('div');
+                description.className = 'video-description';
+                description.textContent = 'Watch on youtube';
+
+                // Create chess.com game link
+                const chessComLink = document.createElement('a');
+                chessComLink.href = `https://www.chess.com/game/live/${video.game_id}`;
+                chessComLink.className = 'chess-com-link';
+                chessComLink.textContent = 'Game on Chess.com';
+                chessComLink.target = '_blank';
+
                 // Assemble the video item
                 videoText.appendChild(title);
+                videoText.appendChild(description);
+                videoText.appendChild(chessComLink);
                 videoItem.appendChild(thumbnail);
                 videoItem.appendChild(videoText);
 
