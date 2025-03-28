@@ -1,4 +1,4 @@
-Set.prototype.intersection = function(otherSet) {
+Set.prototype.intersection = function (otherSet) {
     return new Set([...this].filter(item => otherSet.has(item)));
 };
 
@@ -121,6 +121,7 @@ function populateSeriesSelection() {
         // Restore saved selection
         const savedSeries = localStorage.getItem('selectedSeries');
         if (savedSeries && openingBook.series[savedSeries]) {
+            console.log("Setting series to", savedSeries, " from local storage");
             seriesSelect.value = savedSeries;
         } else {
             // Default to "Any Series" if no saved selection
@@ -159,13 +160,13 @@ document.getElementById('player-color').addEventListener('click', (e) => {
     const button = e.target;
     const currentColor = button.textContent.includes('White') ? 'w' : 'b';
     const newColor = currentColor === 'w' ? 'b' : 'w';
-    
+
     // Update button text
     button.textContent = `Playing as ${newColor === 'w' ? 'White' : 'Black'}`;
-    
+
     // Update board orientation
     updateBoardOrientation();
-    
+
     // Trigger position change
     onPositionChange();
 });
@@ -190,6 +191,7 @@ document.getElementById('end-btn').addEventListener('click', goToEnd);
 document.getElementById('new-game-btn').addEventListener('click', startNewGame);
 document.getElementById('load-pgn-btn').addEventListener('click', loadPGN);
 document.getElementById('lichess-analysis-btn').addEventListener('click', openInLichess);
+document.getElementById('share-btn').addEventListener('click', shareGame);
 
 // Check if a move is legal
 function onDragStart(source, piece, position, orientation) {
@@ -271,7 +273,7 @@ function getNodeAtCurrentPosition() {
     return node;
 }
 
-function getCurrentSeriesGameIds(){
+function getCurrentSeriesGameIds() {
     let seriesName = document.getElementById("series-select").value;
     // console.log(seriesName);
     return openingBook.series[seriesName];
@@ -319,7 +321,7 @@ function onPositionChange() {
             // Part 2: insert the youtube links
             // console.log("Starting part 2");
             videoListContainer.innerHTML = ''; // Clear existing videos
-            
+
             // Create array of video data for sorting
             const videoData = [];
             for (game_id of node["game_ids"]) {
@@ -351,7 +353,7 @@ function onPositionChange() {
                         return 0;
                 }
             });
-            
+
             // Create video items from sorted data
             for (const video of videoData) {
                 // Create video item element
@@ -359,7 +361,7 @@ function onPositionChange() {
                 videoItem.href = video.yt_link;
                 videoItem.className = 'video-item';
                 videoItem.target = '_blank';
-                
+
                 // Extract video ID from YouTube link for thumbnail
                 let videoId;
                 if (video.yt_link.includes('youtu.be/')) {
@@ -367,36 +369,36 @@ function onPositionChange() {
                 } else {
                     videoId = video.yt_link.split('v=')[1]?.split('&')[0];
                 }
-                
+
                 // console.log("YouTube link:", video.yt_link); // Debug the full link
                 // console.log("Extracted video ID:", videoId);
                 const thumbnailUrl = `https://img.youtube.com/vi/${videoId || ''}/mqdefault.jpg`;
-                
+
                 // Create thumbnail image
                 const thumbnail = document.createElement('img');
                 thumbnail.src = thumbnailUrl;
                 thumbnail.alt = 'Video thumbnail';
-                
+
                 // Create text container
                 const videoText = document.createElement('div');
                 videoText.className = 'video-text';
-                
+
                 // Create title with Elo rating
                 const title = document.createElement('div');
                 title.className = 'video-title';
                 title.textContent = `${video.vs_str} (${video.elo})`;
-                
+
                 // Assemble the video item
                 videoText.appendChild(title);
                 videoItem.appendChild(thumbnail);
                 videoItem.appendChild(videoText);
-                
+
                 // Add to container
                 videoListContainer.appendChild(videoItem);
-                
+
                 // console.log(video.vs_str, video.yt_link);
             }
-        } 
+        }
         redrawArrows();
     });
 }
@@ -511,7 +513,7 @@ function redrawArrows() {
         const toRank = 8 - parseInt(to.charAt(1));
 
         // Mirror coordinates if playing as Black
-        const fromX = isBlack ? 
+        const fromX = isBlack ?
             (7 - fromFile) * squareSize + squareSize / 2 :
             fromFile * squareSize + squareSize / 2;
         const fromY = isBlack ?
@@ -821,13 +823,13 @@ function findDivergencePoint() {
     // Check each move in the current game
     for (let i = 0; i < uciMoves.length; i++) {
         let uciMove = uciMoves[i];
-        
+
         // If this move exists in the current node
         if (uciMove in node) {
             // Check if this move has any games in the current series
             let game_ids_at_move = node[uciMove]["game_ids"];
             game_ids_at_move = game_ids_at_move.intersection(series_game_ids);
-            
+
             if (game_ids_at_move.size > 0) {
                 node = node[uciMove];
             } else {
@@ -847,7 +849,7 @@ function findDivergencePoint() {
         return -1;
     }
 
-    return divergencePoint - 1; 
+    return divergencePoint - 1;
 }
 
 // Function to open current position in Lichess analysis
@@ -855,4 +857,134 @@ function openInLichess() {
     const fen = chess.fen();
     const url = `https://lichess.org/analysis/${fen}`;
     window.open(url, '_blank');
-} 
+}
+
+// Function to encode game state into URL
+function shareGame() {
+    // Create a copy of the current URL
+    const url = new URL(window.location.href);
+
+    // Encode move history, current position, and series selection
+    const gameState = {
+        moves: moveHistory.map(move => `${move.from}${move.to}${move.promotion || ''}`).join(','),
+        position: currentPosition,
+        series: document.getElementById('series-select').value
+    };
+
+    // Add game state to URL
+    url.searchParams.set('game', btoa(JSON.stringify(gameState)));
+
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = url.toString();
+    document.body.appendChild(textarea);
+
+    // Try to use the clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url.toString())
+            .then(() => {
+                alert('Game link copied to clipboard!');
+                document.body.removeChild(textarea);
+            })
+            .catch(err => {
+                console.error('Failed to copy link:', err);
+                fallbackCopyToClipboard();
+            });
+    } else {
+        fallbackCopyToClipboard();
+    }
+
+    function fallbackCopyToClipboard() {
+        // Select the text
+        textarea.select();
+        textarea.setSelectionRange(0, 99999); // For mobile devices
+
+        try {
+            // Try to copy using the document.execCommand
+            document.execCommand('copy');
+            alert('Game link copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy link:', err);
+            alert('Please copy the link manually: ' + url.toString());
+        } finally {
+            // Clean up
+            document.body.removeChild(textarea);
+        }
+    }
+}
+
+// Function to load game state from URL
+function loadGameFromUrl() {
+    const url = new URL(window.location.href);
+    const gameParam = url.searchParams.get('game');
+
+    if (gameParam) {
+        try {
+            const gameState = JSON.parse(atob(gameParam));
+            console.log("Game state (from url):", gameState);
+            
+            // Wait for the book to load before setting the series
+            bookLoadedPromise.then(() => {
+                // Set the series selection if it exists and is valid
+                if (gameState.series) {
+                    console.log("Series exists in game state:", gameState.series);
+                    const seriesSelect = document.getElementById('series-select');
+                    if (seriesSelect.querySelector(`option[value="${gameState.series}"]`)) {
+                        console.log("Setting series to", gameState.series, " from url");
+                        seriesSelect.value = gameState.series;
+                    } else {
+                        console.log("Series not found in options:", gameState.series);
+                    }
+                }
+
+                // Reset the game
+                chess.reset();
+                moveHistory = [];
+                currentPosition = -1;
+
+                // Replay all moves
+                if (gameState.moves) {
+                    const moves = gameState.moves.split(',');
+                    moves.forEach(moveStr => {
+                        if (moveStr) {
+                            const from = moveStr.substring(0, 2);
+                            const to = moveStr.substring(2, 4);
+                            const promotion = moveStr.length > 4 ? moveStr[4] : null;
+
+                            const move = chess.move({
+                                from: from,
+                                to: to,
+                                promotion: promotion
+                            });
+
+                            if (move) {
+                                moveHistory.push(move);
+                                currentPosition = moveHistory.length - 1;
+                            }
+                        }
+                    });
+                }
+
+                // Set the position
+                if (gameState.position !== undefined) {
+                    currentPosition = gameState.position;
+                }
+
+                // Update the board and UI
+                board.position(chess.fen());
+                updateMoveList();
+                updateStatus();
+                onPositionChange();
+
+                // Clean up the URL
+                url.searchParams.delete('game');
+                window.history.replaceState({}, '', url.toString());
+            });
+        } catch (err) {
+            console.error('Failed to load game from URL:', err);
+        }
+    }
+}
+
+// Load game from URL when page loads
+document.addEventListener('DOMContentLoaded', loadGameFromUrl); 
