@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install pandas jupyterlab ipython
 RUN pip3 install matplotlib
 RUN pip3 install pillow
+RUN pip3 install ipdb
 
 WORKDIR /app
 
