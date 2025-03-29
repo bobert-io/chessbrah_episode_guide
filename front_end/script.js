@@ -400,7 +400,7 @@ function onPositionChange() {
                 // Create title with Elo rating
                 const title = document.createElement('div');
                 title.className = 'video-title';
-                title.textContent = `${video.vs_str} (${video.elo})`;
+                title.textContent = `${video.vs_str}`;
 
                 // Create description
                 const description = document.createElement('div');
