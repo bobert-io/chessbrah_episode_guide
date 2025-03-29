@@ -1,3 +1,5 @@
+book.json
+book.json.gz
 *.ipynb
 bob*
 stupid*

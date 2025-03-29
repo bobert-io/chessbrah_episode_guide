@@ -15,6 +15,7 @@ import json
 import tqdm
 import io
 import collections
+import gzip
 
 dfs = chess_prj.make_dfs(
     "/data/chess_prj/games/",
@@ -40,6 +41,7 @@ book = {
     "games": {},
     "White": {},
     "Black": {},
+    "transpositions": {},
 }
 
 TTL_PAST_UNIQUE = 6
@@ -69,6 +71,13 @@ for idx, row in tqdm.tqdm(final_df.iterrows()):
             break
         node.setdefault("game_ids", []).append(row["game_id"])
         node = node.setdefault(move_uci, {})
+        # Strip out half move clock and full move number from FEN
+        fen_parts = fen.split()
+        fen_trimmed = ' '.join(fen_parts[:4])
+        book["transpositions"].setdefault(fen_trimmed, []).append(row["game_id"])
 
 with open("/data/chess_prj/book.json", "wt") as fp:
+    json.dump(book, fp)
+
+with gzip.open("/data/chess_prj/book.json.gz", "wt") as fp:
     json.dump(book, fp)

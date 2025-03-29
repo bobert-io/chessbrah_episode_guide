@@ -431,6 +431,10 @@
             <option value="elo-high-low">Elo (High to Low)</option>
             <option value="elo-low-high">Elo (Low to High)</option>
           </select>
+          <select id="include-transpositions" aria-label="Include transpositions">
+            <option value="true">Include Transpositions</option>
+            <option value="false">No Transpositions</option>
+          </select>
         </div>
       </div>
       <div id="video-list-container" role="list"></div>
@@ -444,6 +448,7 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script src="script.js"></script>
 </body>
 

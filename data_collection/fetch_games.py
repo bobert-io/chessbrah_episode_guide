@@ -57,7 +57,7 @@ for username in usernames:
                 pass
         else:
             # The archive is not nessicarily final. save as WIP.
-            output_fname = WIP_fname
+            output_fname = PART_fname
         with open(output_fname, "wt", encoding="utf8") as fp:
             fp.write(resp.text)
 

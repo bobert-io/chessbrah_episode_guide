@@ -25,6 +25,12 @@ let openingBook = null; // Global variable to store the opening book data
  *     "game_id1" : [vs_str, yt_link, elo] 
  *     ...
  *   }
+ *   "transpositions" : {
+ *     // The pseudo_FENs are regular FEN with the last two fields removed.
+ *     "pseudo_FEN0"  : [game_id0, game_id1, ...]
+ *     "pseudo_FEN1"  : [game_id0, game_id1, ...]
+ *     ...
+ *   }
  *   "White": {  // Tree of moves for White
  *     "e2e4": {  // UCI format move
  *       "game_ids": Set<number>,  // Set of game IDs that contain this position
@@ -42,14 +48,36 @@ let openingBook = null; // Global variable to store the opening book data
 
 // Create promise that will resolve when book is loaded
 const bookLoadedPromise = new Promise((resolve) => {
+    // Show loading indicator
+    const statusElement = document.getElementById('status');
+    statusElement.textContent = 'Loading opening book...';
+    
+    const startTime = performance.now();
+    
     // Load the opening book asynchronously
-    fetch('book.json')
-        .then(response => response.json())
-        .then(data => {
+    fetch('book.json.gz')
+        .then(response => response.arrayBuffer())
+        .then(buffer => {
+            const fetchTime = performance.now();
+            console.log(`Book download took: ${(fetchTime - startTime).toFixed(2)}ms`);
+            
+            // Decompress the gzipped data
+            const decompressStart = performance.now();
+            const decompressed = pako.inflate(new Uint8Array(buffer));
+            const decompressTime = performance.now();
+            console.log(`Decompression took: ${(decompressTime - decompressStart).toFixed(2)}ms`);
+            
+            // Convert to string and parse JSON
+            const parseStart = performance.now();
+            const data = JSON.parse(new TextDecoder().decode(decompressed));
+            const parseTime = performance.now();
+            console.log(`JSON parsing took: ${(parseTime - parseStart).toFixed(2)}ms`);
+            
             openingBook = data;
             // console.log('Opening book loaded successfully');
 
             // Convert lists to sets
+            const convertStart = performance.now();
             Object.keys(openingBook.series).forEach(key => {
                 openingBook.series[key] = new Set(openingBook.series[key]);
             });
@@ -60,6 +88,11 @@ const bookLoadedPromise = new Promise((resolve) => {
                 allGameIds.add(parseInt(gameId));
             });
             openingBook.series["Any Series"] = allGameIds;
+
+            // Convert lists in transpositions to Sets
+            Object.keys(openingBook.transpositions).forEach(pseudoFEN => {
+                openingBook.transpositions[pseudoFEN] = new Set(openingBook.transpositions[pseudoFEN]);
+            });
 
             // Convert game_ids lists to Sets for both White and Black trees
             function convertGameIdsToSets(node) {
@@ -77,6 +110,9 @@ const bookLoadedPromise = new Promise((resolve) => {
             // Convert game_ids in both trees
             convertGameIdsToSets(openingBook.White);
             convertGameIdsToSets(openingBook.Black);
+            const convertTime = performance.now();
+            console.log(`Data structure conversion took: ${(convertTime - convertStart).toFixed(2)}ms`);
+            console.log(`Total book loading took: ${(convertTime - startTime).toFixed(2)}ms`);
 
             // Populate series selection
             populateSeriesSelection();
@@ -88,10 +124,21 @@ const bookLoadedPromise = new Promise((resolve) => {
                 sortSelect.value = savedSort;
             }
 
+            // Restore saved transpositions setting
+            const includeTranspositionsSelect = document.getElementById('include-transpositions');
+            const savedIncludeTranspositions = localStorage.getItem('includeTranspositions');
+            if (savedIncludeTranspositions !== null) {
+                includeTranspositionsSelect.value = savedIncludeTranspositions;
+            }
+
+            // Update status
+            statusElement.textContent = 'White to move';
+
             resolve(data);
         })
         .catch(error => {
             console.error('Error loading opening book:', error);
+            statusElement.textContent = 'Error loading opening book';
             resolve(null); // Resolve with null on error
         });
 });
@@ -108,20 +155,22 @@ function populateSeriesSelection() {
         anySeriesOption.textContent = "Any Series";
         seriesSelect.appendChild(anySeriesOption);
 
-        // Then add all other series
-        Object.keys(openingBook.series).forEach(seriesName => {
-            if (seriesName !== "Any Series") {
-                const option = document.createElement('option');
-                option.value = seriesName;
-                option.textContent = seriesName;
-                seriesSelect.appendChild(option);
-            }
+        // Get all other series names and sort them alphabetically
+        const otherSeries = Object.keys(openingBook.series)
+            .filter(seriesName => seriesName !== "Any Series")
+            .sort();
+
+        // Add all other series in alphabetical order
+        otherSeries.forEach(seriesName => {
+            const option = document.createElement('option');
+            option.value = seriesName;
+            option.textContent = seriesName;
+            seriesSelect.appendChild(option);
         });
 
         // Restore saved selection
         const savedSeries = localStorage.getItem('selectedSeries');
         if (savedSeries && openingBook.series[savedSeries]) {
-            console.log("Setting series to", savedSeries, " from local storage");
             seriesSelect.value = savedSeries;
         } else {
             // Default to "Any Series" if no saved selection
@@ -153,6 +202,12 @@ document.getElementById('sort-select').addEventListener('change', (e) => {
     console.log("Attempting to set sort option to", e.target.value);
     localStorage.setItem('selectedSort', e.target.value);
     onPositionChange(); // Trigger position change when sort option changes
+});
+
+// Add event listener for transpositions selection changes
+document.getElementById('include-transpositions').addEventListener('change', (e) => {
+    localStorage.setItem('includeTranspositions', e.target.value);
+    onPositionChange(); // Trigger position change when transpositions setting changes
 });
 
 // Add event listener for player color changes
@@ -302,9 +357,128 @@ function onPositionChange() {
         arrows = [];
         const videoListContainer = document.getElementById('video-list-container');
         videoListContainer.innerHTML = ''; // Clear existing videos
+
+        // Create a Set to track which games we've already added
+        const addedGames = new Set();
+
+        // Part 1: Get games from normal move order
+        const videoData = [];
         if (node) {
-            // Part 1: draw the arrows
-            // console.log(node);
+            for (game_id of node["game_ids"]) {
+                if (!(series_game_ids.has(game_id))) {
+                    continue;
+                }
+                let game_data = openingBook.games[game_id];
+                let vs_str = game_data[0];
+                let yt_link = game_data[1];
+                let elo = game_data[2];
+                videoData.push({ game_id, vs_str, yt_link, elo, isTransposed: false });
+                addedGames.add(game_id);
+            }
+        }
+
+        // Part 2: Get games from transpositions if enabled
+        const includeTranspositions = document.getElementById('include-transpositions').value === 'true';
+        if (includeTranspositions) {
+            const currentFEN = chess.fen();
+            const pseudoFEN = currentFEN.split(' ').slice(0, 4).join(' ');
+            if (openingBook.transpositions[pseudoFEN]) {
+                const transposedGames = openingBook.transpositions[pseudoFEN];
+                for (game_id of transposedGames) {
+                    if (!(series_game_ids.has(game_id)) || addedGames.has(game_id)) {
+                        continue;
+                    }
+                    let game_data = openingBook.games[game_id];
+                    let vs_str = "(T) " + game_data[0];
+                    let yt_link = game_data[1];
+                    let elo = game_data[2];
+                    videoData.push({ game_id, vs_str, yt_link, elo, isTransposed: true });
+                    addedGames.add(game_id);
+                }
+            }
+        }
+
+        // Sort videos based on selected option
+        const sortSelect = document.getElementById('sort-select');
+        videoData.sort((a, b) => {
+            // First sort by transposition status (untransposed first)
+            if (a.isTransposed !== b.isTransposed) {
+                return a.isTransposed ? 1 : -1;
+            }
+            
+            // Then sort by Elo
+            switch (sortSelect.value) {
+                case 'elo-high-low':
+                    return b.elo - a.elo;
+                case 'elo-low-high':
+                    return a.elo - b.elo;
+                case 'elo-closest':
+                    // Assuming we want to sort by closest to 1500 Elo
+                    const targetElo = 1500;
+                    return Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo);
+                default:
+                    alert("Invalid sort option");
+                    return 0;
+            }
+        });
+
+        // Create video items from sorted data
+        for (const video of videoData) {
+            // Create video item element
+            const videoItem = document.createElement('a');
+            videoItem.href = video.yt_link;
+            videoItem.className = 'video-item';
+            videoItem.target = '_blank';
+
+            // Extract video ID from YouTube link for thumbnail
+            let videoId;
+            if (video.yt_link.includes('youtu.be/')) {
+                videoId = video.yt_link.split('youtu.be/')[1]?.split('?')[0];
+            } else {
+                videoId = video.yt_link.split('v=')[1]?.split('&')[0];
+            }
+
+            const thumbnailUrl = `https://img.youtube.com/vi/${videoId || ''}/mqdefault.jpg`;
+
+            // Create thumbnail image
+            const thumbnail = document.createElement('img');
+            thumbnail.src = thumbnailUrl;
+            thumbnail.alt = 'Video thumbnail';
+
+            // Create text container
+            const videoText = document.createElement('div');
+            videoText.className = 'video-text';
+
+            // Create title with Elo rating
+            const title = document.createElement('div');
+            title.className = 'video-title';
+            title.textContent = `${video.vs_str}`;
+
+            // Create description
+            const description = document.createElement('div');
+            description.className = 'video-description';
+            description.textContent = 'Watch on youtube';
+
+            // Create chess.com game link
+            const chessComLink = document.createElement('a');
+            chessComLink.href = `https://www.chess.com/game/live/${video.game_id}`;
+            chessComLink.className = 'chess-com-link';
+            chessComLink.textContent = 'Game on Chess.com';
+            chessComLink.target = '_blank';
+
+            // Assemble the video item
+            videoText.appendChild(title);
+            videoText.appendChild(description);
+            videoText.appendChild(chessComLink);
+            videoItem.appendChild(thumbnail);
+            videoItem.appendChild(videoText);
+
+            // Add to container
+            videoListContainer.appendChild(videoItem);
+        }
+
+        // Part 3: draw the arrows
+        if (node) {
             // Find the maximum number of games for any move to calculate alpha values
             let maxGames = 0;
             for (move in node) {
@@ -331,100 +505,6 @@ function onPositionChange() {
                         alpha: alpha
                     });
                 }
-            }
-            // Part 2: insert the youtube links
-            // console.log("Starting part 2");
-            videoListContainer.innerHTML = ''; // Clear existing videos
-
-            // Create array of video data for sorting
-            const videoData = [];
-            for (game_id of node["game_ids"]) {
-                if (!(series_game_ids.has(game_id))) {
-                    continue;
-                }
-                let game_data = openingBook.games[game_id];
-                let vs_str = game_data[0];
-                let yt_link = game_data[1];
-                let elo = game_data[2];
-                // console.log(elo);
-                videoData.push({ game_id, vs_str, yt_link, elo });
-            }
-
-            // Sort videos based on selected option
-            const sortSelect = document.getElementById('sort-select');
-            videoData.sort((a, b) => {
-                switch (sortSelect.value) {
-                    case 'elo-high-low':
-                        return b.elo - a.elo;
-                    case 'elo-low-high':
-                        return a.elo - b.elo;
-                    case 'elo-closest':
-                        // Assuming we want to sort by closest to 1500 Elo
-                        const targetElo = 1500;
-                        return Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo);
-                    default:
-                        alert("Invalid sort option");
-                        return 0;
-                }
-            });
-
-            // Create video items from sorted data
-            for (const video of videoData) {
-                // Create video item element
-                const videoItem = document.createElement('a');
-                videoItem.href = video.yt_link;
-                videoItem.className = 'video-item';
-                videoItem.target = '_blank';
-
-                // Extract video ID from YouTube link for thumbnail
-                let videoId;
-                if (video.yt_link.includes('youtu.be/')) {
-                    videoId = video.yt_link.split('youtu.be/')[1]?.split('?')[0];
-                } else {
-                    videoId = video.yt_link.split('v=')[1]?.split('&')[0];
-                }
-
-                // console.log("YouTube link:", video.yt_link); // Debug the full link
-                // console.log("Extracted video ID:", videoId);
-                const thumbnailUrl = `https://img.youtube.com/vi/${videoId || ''}/mqdefault.jpg`;
-
-                // Create thumbnail image
-                const thumbnail = document.createElement('img');
-                thumbnail.src = thumbnailUrl;
-                thumbnail.alt = 'Video thumbnail';
-
-                // Create text container
-                const videoText = document.createElement('div');
-                videoText.className = 'video-text';
-
-                // Create title with Elo rating
-                const title = document.createElement('div');
-                title.className = 'video-title';
-                title.textContent = `${video.vs_str}`;
-
-                // Create description
-                const description = document.createElement('div');
-                description.className = 'video-description';
-                description.textContent = 'Watch on youtube';
-
-                // Create chess.com game link
-                const chessComLink = document.createElement('a');
-                chessComLink.href = `https://www.chess.com/game/live/${video.game_id}`;
-                chessComLink.className = 'chess-com-link';
-                chessComLink.textContent = 'Game on Chess.com';
-                chessComLink.target = '_blank';
-
-                // Assemble the video item
-                videoText.appendChild(title);
-                videoText.appendChild(description);
-                videoText.appendChild(chessComLink);
-                videoItem.appendChild(thumbnail);
-                videoItem.appendChild(videoText);
-
-                // Add to container
-                videoListContainer.appendChild(videoItem);
-
-                // console.log(video.vs_str, video.yt_link);
             }
         }
         redrawArrows();
@@ -892,11 +972,12 @@ function shareGame() {
     // Create a copy of the current URL
     const url = new URL(window.location.href);
 
-    // Encode move history, current position, and series selection
+    // Encode move history, current position, series selection, and transpositions setting
     const gameState = {
         moves: moveHistory.map(move => `${move.from}${move.to}${move.promotion || ''}`).join(','),
         position: currentPosition,
-        series: document.getElementById('series-select').value
+        series: document.getElementById('series-select').value,
+        includeTranspositions: document.getElementById('include-transpositions').value
     };
 
     // Add game state to URL
@@ -962,6 +1043,14 @@ function loadGameFromUrl() {
                         seriesSelect.value = gameState.series;
                     } else {
                         console.log("Series not found in options:", gameState.series);
+                    }
+                }
+
+                // Set the transpositions setting if it exists
+                if (gameState.includeTranspositions) {
+                    const includeTranspositionsSelect = document.getElementById('include-transpositions');
+                    if (includeTranspositionsSelect.querySelector(`option[value="${gameState.includeTranspositions}"]`)) {
+                        includeTranspositionsSelect.value = gameState.includeTranspositions;
                     }
                 }
 
