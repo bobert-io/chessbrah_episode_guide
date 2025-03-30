@@ -41,10 +41,11 @@ book = {
     "games": {},
     "White": {},
     "Black": {},
-    "transpositions": {},
+    "White_transpositions": {},
+    "Black_transpositions": {},
 }
 
-TTL_PAST_UNIQUE = 6
+TTL_PAST_UNIQUE = 12
 for idx, row in tqdm.tqdm(final_df.iterrows()):
     TTL = float("inf")
 
@@ -74,7 +75,7 @@ for idx, row in tqdm.tqdm(final_df.iterrows()):
         # Strip out half move clock and full move number from FEN
         fen_parts = fen.split()
         fen_trimmed = ' '.join(fen_parts[:4])
-        book["transpositions"].setdefault(fen_trimmed, []).append(row["game_id"])
+        book[row['player_color'] + "_transpositions"].setdefault(fen_trimmed, []).append(row["game_id"])
 
 with open("/data/chess_prj/book.json", "wt") as fp:
     json.dump(book, fp)

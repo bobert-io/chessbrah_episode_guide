@@ -280,18 +280,30 @@ function onDragStart(source, piece, position, orientation) {
 
 // Handle piece movement
 function onDrop(source, target) {
-    // Check if this move would result in a pawn promotion
-    const moveObj = {
-        from: source,
-        to: target,
-        promotion: 'q' // default to queen
-    };
-
     // Get the moving piece
     const piece = chess.get(source);
 
     // Check if it's a pawn moving to the last rank
     if (piece && piece.type === 'p' && (target.charAt(1) === '8' || target.charAt(1) === '1')) {
+        // First check if the move is legal with a queen promotion
+        const moveObj = {
+            from: source,
+            to: target,
+            promotion: 'q' // default to queen
+        };
+
+        // Try to make the move
+        const move = chess.move(moveObj);
+
+        // If illegal move, snap back
+        if (move === null) {
+            chess.undo(); // Undo the move attempt
+            return 'snapback';
+        }
+
+        // If legal, undo the move and show promotion dialog
+        chess.undo();
+        
         // Store the pending promotion move
         pendingPromotion = { source, target };
 
@@ -302,7 +314,11 @@ function onDrop(source, target) {
     }
 
     // Try to make the move
-    const move = chess.move(moveObj);
+    const move = chess.move({
+        from: source,
+        to: target,
+        promotion: 'q' // default to queen
+    });
 
     // If illegal move, snap back
     if (move === null) return 'snapback';
