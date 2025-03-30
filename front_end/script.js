@@ -24,13 +24,19 @@ let openingBook = null; // Global variable to store the opening book data
  *     "game_id0" : [vs_str, yt_link, elo] 
  *     "game_id1" : [vs_str, yt_link, elo] 
  *     ...
- *   }
- *   "transpositions" : {
+ *   },
+ *   "White_transpositions": {  // Transposition table for White
  *     // The pseudo_FENs are regular FEN with the last two fields removed.
  *     "pseudo_FEN0"  : [game_id0, game_id1, ...]
  *     "pseudo_FEN1"  : [game_id0, game_id1, ...]
  *     ...
- *   }
+ *   },
+ *   "Black_transpositions": {  // Transposition table for Black
+ *     // The pseudo_FENs are regular FEN with the last two fields removed.
+ *     "pseudo_FEN0"  : [game_id0, game_id1, ...]
+ *     "pseudo_FEN1"  : [game_id0, game_id1, ...]
+ *     ...
+ *   },
  *   "White": {  // Tree of moves for White
  *     "e2e4": {  // UCI format move
  *       "game_ids": Set<number>,  // Set of game IDs that contain this position
@@ -90,8 +96,11 @@ const bookLoadedPromise = new Promise((resolve) => {
             openingBook.series["Any Series"] = allGameIds;
 
             // Convert lists in transpositions to Sets
-            Object.keys(openingBook.transpositions).forEach(pseudoFEN => {
-                openingBook.transpositions[pseudoFEN] = new Set(openingBook.transpositions[pseudoFEN]);
+            Object.keys(openingBook.White_transpositions).forEach(pseudoFEN => {
+                openingBook.White_transpositions[pseudoFEN] = new Set(openingBook.White_transpositions[pseudoFEN]);
+            });
+            Object.keys(openingBook.Black_transpositions).forEach(pseudoFEN => {
+                openingBook.Black_transpositions[pseudoFEN] = new Set(openingBook.Black_transpositions[pseudoFEN]);
             });
 
             // Convert game_ids lists to Sets for both White and Black trees
@@ -398,8 +407,13 @@ function onPositionChange() {
         if (includeTranspositions) {
             const currentFEN = chess.fen();
             const pseudoFEN = currentFEN.split(' ').slice(0, 4).join(' ');
-            if (openingBook.transpositions[pseudoFEN]) {
-                const transposedGames = openingBook.transpositions[pseudoFEN];
+            
+            // Get the correct transposition table based on player color
+            const isWhite = document.getElementById('player-color').textContent.includes('White');
+            const transpositionTable = isWhite ? openingBook.White_transpositions : openingBook.Black_transpositions;
+            
+            if (transpositionTable[pseudoFEN]) {
+                const transposedGames = transpositionTable[pseudoFEN];
                 for (game_id of transposedGames) {
                     if (!(series_game_ids.has(game_id)) || addedGames.has(game_id)) {
                         continue;
@@ -1108,10 +1122,6 @@ function loadGameFromUrl() {
                 updateMoveList();
                 updateStatus();
                 onPositionChange();
-
-                // Clean up the URL
-                url.searchParams.delete('game');
-                window.history.replaceState({}, '', url.toString());
             });
         } catch (err) {
             console.error('Failed to load game from URL:', err);
