@@ -105,6 +105,9 @@ def make_games_df(json_dir):
         "game_id": [],
     }
 
+    starting_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+
     # json_fname = json_fnames[0]
     for json_fname in json_fnames:
         gm_username = os.path.splitext(os.path.basename(json_fname))[0]
@@ -112,7 +115,7 @@ def make_games_df(json_dir):
         with open(json_fname, "r") as fp:
             games = json.load(fp)
         for game in games:
-            if game["initial_setup"]:
+            if game["initial_setup"] not in [None, '', starting_fen]:
                 continue
             assert game["rules"] == "chess"
 
