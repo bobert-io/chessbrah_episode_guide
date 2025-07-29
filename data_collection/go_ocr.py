@@ -35,7 +35,7 @@ for ss_done_fname in tqdm.tqdm(glob.glob("/data/chess_prj/screenshots/*.done")):
             png_fnames = glob.glob(ss_done_fname[:-5] + "*.png")
             for png_fname in tqdm.tqdm(png_fnames, desc=ocr_done_fname):
                 png_timestamp = int(
-                    re.match(".*_(?P<timestamp>\d+).png$", png_fname)["timestamp"]
+                    re.match(r".*_(?P<timestamp>\d+).png$", png_fname)["timestamp"]
                 )
                 ocr_data = ocr.ocr(png_fname, cls=False)
                 fp.write(f"{png_timestamp} {json.dumps(ocr_data)}\n")

@@ -1,0 +1,21 @@
+[project]
+name = "data-collection"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "chess",
+    "ipdb",
+    "ipython",
+    "jupyterlab",
+    "matplotlib",
+    "numpy",
+    "opencv-python",
+    "paddleocr==2.10.0",
+    "paddlepaddle-gpu",
+    "pandas",
+    "pillow",
+    "requests",
+    "rapidfuzz",
+]

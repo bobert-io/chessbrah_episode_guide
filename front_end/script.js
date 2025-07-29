@@ -1002,12 +1002,17 @@ function shareGame() {
     // Create a copy of the current URL
     const url = new URL(window.location.href);
 
-    // Encode move history, current position, series selection, and transpositions setting
+    // Get current player color
+    const playerColorButton = document.getElementById('player-color');
+    const playerColor = playerColorButton.textContent.includes('White') ? 'w' : 'b';
+
+    // Encode move history, current position, series selection, transpositions setting, and player color
     const gameState = {
         moves: moveHistory.map(move => `${move.from}${move.to}${move.promotion || ''}`).join(','),
         position: currentPosition,
         series: document.getElementById('series-select').value,
-        includeTranspositions: document.getElementById('include-transpositions').value
+        includeTranspositions: document.getElementById('include-transpositions').value,
+        playerColor: playerColor
     };
 
     // Add game state to URL
@@ -1082,6 +1087,14 @@ function loadGameFromUrl() {
                     if (includeTranspositionsSelect.querySelector(`option[value="${gameState.includeTranspositions}"]`)) {
                         includeTranspositionsSelect.value = gameState.includeTranspositions;
                     }
+                }
+
+                // Set the player color if it exists
+                if (gameState.playerColor) {
+                    const playerColorButton = document.getElementById('player-color');
+                    const newColor = gameState.playerColor === 'w' ? 'White' : 'Black';
+                    playerColorButton.textContent = `Playing as ${newColor}`;
+                    updateBoardOrientation();
                 }
 
                 // Reset the game
