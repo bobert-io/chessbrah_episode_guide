@@ -18,4 +18,5 @@ dependencies = [
     "pillow",
     "requests",
     "rapidfuzz",
+    "yt-dlp"
 ]
